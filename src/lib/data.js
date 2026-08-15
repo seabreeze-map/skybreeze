@@ -100,9 +100,11 @@ export async function getAllDashboardData() {
 export async function saveAllData(supabase, { general, packages, personnel, equipment, risks }) {
   const errors = [];
 
-  try {
-    // 1. Project Info — upsert
-    if (general) {
+  const tasks = [];
+
+  // 1. Project Info — upsert
+  if (general) {
+    tasks.push((async () => {
       const { data: existing } = await supabase
         .from('project_info')
         .select('id')
@@ -127,60 +129,76 @@ export async function saveAllData(supabase, { general, packages, personnel, equi
         const { error } = await supabase.from('project_info').insert(row);
         if (error) errors.push('project_info: ' + error.message);
       }
-    }
+    })());
+  }
 
-    // 2. Packages — update by name
-    if (packages?.length) {
-      for (const pkg of packages) {
-        const { error } = await supabase
-          .from('packages')
-          .update({
-            plan_percent: pkg.plan,
-            fact_percent: pkg.fact,
-            curr_deviation: +(pkg.fact - pkg.plan).toFixed(1),
-            trend: pkg.trend || '',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('name', pkg.name);
-        if (error) errors.push(`packages(${pkg.name}): ${error.message}`);
-      }
+  // 2. Packages — update all in parallel
+  if (packages?.length) {
+    const now = new Date().toISOString();
+    const pkgUpdates = packages.map(pkg =>
+      supabase
+        .from('packages')
+        .update({
+          plan_percent: pkg.plan,
+          fact_percent: pkg.fact,
+          curr_deviation: +(pkg.fact - pkg.plan).toFixed(1),
+          trend: pkg.trend || '',
+          updated_at: now,
+        })
+        .eq('name', pkg.name)
+        .then(({ error }) => {
+          if (error) errors.push(`packages(${pkg.name}): ${error.message}`);
+        })
+    );
+    tasks.push(Promise.all(pkgUpdates));
 
-      // Auto-update weekly trend for current report
-      const overall = packages.find(p => p.name.includes('Cəmi'));
-      if (overall && general?.reportDate) {
-        const weekLabel = 'H' + getWeekNumber(general.reportDate);
-        const { error } = await supabase.from('weekly_trends').upsert(
+    // Auto-update weekly trend
+    const overall = packages.find(p => p.name.includes('Cəmi'));
+    if (overall && general?.reportDate) {
+      const weekLabel = 'H' + getWeekNumber(general.reportDate);
+      tasks.push(
+        supabase.from('weekly_trends').upsert(
           { week_label: weekLabel, plan_percent: overall.plan, fact_percent: overall.fact },
           { onConflict: 'week_label' }
-        );
-        if (error) errors.push('weekly_trends: ' + error.message);
-      }
+        ).then(({ error }) => {
+          if (error) errors.push('weekly_trends: ' + error.message);
+        })
+      );
     }
+  }
 
-    // 3. Personnel — insert new daily record
-    if (personnel) {
-      const { error } = await supabase.from('daily_personnel').insert({
+  // 3. Personnel — insert new daily record
+  if (personnel) {
+    tasks.push(
+      supabase.from('daily_personnel').insert({
         record_date: personnel.date,
         administrative: personnel.administrative,
         technical: personnel.technical,
         field_count: personnel.field,
-      });
-      if (error) errors.push('daily_personnel: ' + error.message);
-    }
+      }).then(({ error }) => {
+        if (error) errors.push('daily_personnel: ' + error.message);
+      })
+    );
+  }
 
-    // 4. Equipment — update counts by name
-    if (equipment?.length) {
-      for (const eq of equipment) {
-        const { error } = await supabase
-          .from('equipment')
-          .update({ count: eq.count, updated_at: new Date().toISOString() })
-          .eq('name', eq.name);
-        if (error) errors.push(`equipment(${eq.name}): ${error.message}`);
-      }
-    }
+  // 4. Equipment — update all in parallel
+  if (equipment?.length) {
+    const now = new Date().toISOString();
+    const eqUpdates = equipment.map(eq =>
+      supabase
+        .from('equipment')
+        .update({ count: eq.count, updated_at: now })
+        .eq('name', eq.name)
+        .then(({ error }) => {
+          if (error) errors.push(`equipment(${eq.name}): ${error.message}`);
+        })
+    );
+    tasks.push(Promise.all(eqUpdates));
+  }
 
-    // 5. Risks — delete all, re-insert
-    if (risks) {
+  // 5. Risks — delete all, re-insert
+  if (risks) {
+    tasks.push((async () => {
       await supabase.from('risks').delete().gte('risk_number', 0);
       if (risks.length > 0) {
         const rows = risks.map((r, i) => ({
@@ -195,10 +213,10 @@ export async function saveAllData(supabase, { general, packages, personnel, equi
         const { error } = await supabase.from('risks').insert(rows);
         if (error) errors.push('risks: ' + error.message);
       }
-    }
-  } catch (err) {
-    errors.push(err.message);
+    })());
   }
+
+  await Promise.all(tasks);
 
   return { success: errors.length === 0, errors };
 }
