@@ -45,9 +45,10 @@ export default function PortalPage() {
 
     try {
       const supabase = createSupabaseBrowserClient();
+      const cleanEmail = email.trim().toLowerCase();
       const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: cleanEmail,
+        password: password,
       });
 
       if (authError) {
@@ -57,13 +58,10 @@ export default function PortalPage() {
       }
 
       // Admin → /admin, Guest → /dashboard
-      if (data.user?.email === 'kanan.gahramanov@seabreeze.az') {
-        router.push('/admin');
-      } else {
-        router.push('/dashboard');
-      }
-      router.refresh();
+      const targetUrl = data.user?.email === 'kanan.gahramanov@seabreeze.az' ? '/admin' : '/dashboard';
+      window.location.href = targetUrl;
     } catch (err) {
+      console.error('Login error:', err);
       setError('Giriş zamanı xəta baş verdi');
       setLoading(false);
     }
