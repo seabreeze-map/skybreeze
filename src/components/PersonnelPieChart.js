@@ -1,90 +1,76 @@
 'use client';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-const COLORS = ['#2C3E50', '#2980B9', '#E67E22'];
+const COLORS = {
+  field: '#7C6FD4',
+  technical: '#E8A838',
+  administrative: '#2980B9',
+};
 
-export default function PersonnelPieChart({ personnel, byPosition }) {
+export default function PersonnelPieChart({ personnel, byPosition, history }) {
   if (!personnel) return null;
 
-  const pieData = [
-    { name: 'İdari', value: personnel.administrative },
-    { name: 'Texniki', value: personnel.technical },
-    { name: 'Sahə', value: personnel.field },
-  ];
+  const chartData = history && history.length > 0
+    ? history
+    : [{ day: 1, field: personnel.field, technical: personnel.technical, administrative: personnel.administrative }];
 
-  const CustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }) => {
-    const RADIAN = Math.PI / 180;
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-    if (percent < 0.05) return null;
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (!active || !payload?.length) return null;
+    const total = payload.reduce((s, p) => s + (p.value || 0), 0);
     return (
-      <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={600}>
-        {`${(percent * 100).toFixed(0)}%`}
-      </text>
+      <div style={{
+        background: 'var(--color-surface, #fff)',
+        border: '1px solid var(--color-border, #e5e7eb)',
+        borderRadius: '8px',
+        padding: '10px 14px',
+        fontSize: '13px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+      }}>
+        <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--color-text, #1a1a2e)' }}>
+          Gün {label}
+        </div>
+        {payload.map((p, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, display: 'inline-block' }} />
+            <span style={{ color: 'var(--color-text-secondary, #64748b)' }}>{p.name}:</span>
+            <strong style={{ color: 'var(--color-text, #1a1a2e)' }}>{p.value}</strong>
+          </div>
+        ))}
+        <div style={{ borderTop: '1px solid var(--color-border, #e5e7eb)', marginTop: 4, paddingTop: 4, fontWeight: 600, color: 'var(--color-text, #1a1a2e)' }}>
+          Cəmi: {total}
+        </div>
+      </div>
     );
   };
 
   return (
     <div className="chart-container">
-      <h3 className="chart-title">Personal Bölgüsü</h3>
-      <div className="personnel-layout">
-        <div className="personnel-pie-wrapper">
-          <ResponsiveContainer width="100%" height={260}>
-            <PieChart>
-              <Pie
-                data={pieData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={CustomLabel}
-                outerRadius={100}
-                dataKey="value"
-                stroke="#fff"
-                strokeWidth={2}
-              >
-                {pieData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value) => `${value} nəfər`} />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="personnel-total">
-            Cəmi: <strong>{personnel.total}</strong> nəfər
-          </div>
-        </div>
-
-        {byPosition && byPosition.length > 0 && (
-          <div className="personnel-table-wrapper">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>№</th>
-                  <th>Vəzifə / Peşə</th>
-                  <th>Kateqoriya</th>
-                  <th>Say</th>
-                </tr>
-              </thead>
-              <tbody>
-                {byPosition.map((item, i) => (
-                  <tr key={i}>
-                    <td>{i + 1}</td>
-                    <td>{item.position}</td>
-                    <td>
-                      <span className={`category-badge category-badge--${item.category === 'İdari' ? 'admin' : item.category === 'Texniki' ? 'tech' : 'field'}`}>
-                        {item.category}
-                      </span>
-                    </td>
-                    <td className="td-number">{item.count}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      <h3 className="chart-title">Günlük personal sayı</h3>
+      <ResponsiveContainer width="100%" height={320}>
+        <BarChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border, #e5e7eb)" vertical={false} />
+          <XAxis
+            dataKey="day"
+            tick={{ fontSize: 12, fill: 'var(--color-text-muted, #94a3b8)' }}
+            axisLine={{ stroke: 'var(--color-border, #e5e7eb)' }}
+            tickLine={false}
+          />
+          <YAxis
+            tick={{ fontSize: 12, fill: 'var(--color-text-muted, #94a3b8)' }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
+          <Legend
+            iconType="circle"
+            iconSize={10}
+            wrapperStyle={{ fontSize: '13px', paddingTop: '12px' }}
+          />
+          <Bar dataKey="field" name="Sahə personalı" stackId="a" fill={COLORS.field} radius={[0, 0, 0, 0]} />
+          <Bar dataKey="technical" name="Texniki personal" stackId="a" fill={COLORS.technical} radius={[0, 0, 0, 0]} />
+          <Bar dataKey="administrative" name="İdari personal" stackId="a" fill={COLORS.administrative} radius={[3, 3, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 }

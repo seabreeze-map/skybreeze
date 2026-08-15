@@ -146,7 +146,7 @@ export default function DashboardPage() {
         {/* Charts Row 2: Personnel & Equipment */}
         <div className="dashboard-section">
           <div className="charts-grid">
-            <PersonnelPieChart personnel={personnel} byPosition={personnelByPosition} />
+            <PersonnelPieChart personnel={personnel} byPosition={personnelByPosition} history={data?.personnelHistory || []} />
             <EquipmentChart data={equipmentData} />
           </div>
         </div>

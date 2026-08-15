@@ -17,14 +17,14 @@ export async function getAllDashboardData() {
   ] = await Promise.all([
     supabase.from('project_info').select('*').limit(1).maybeSingle(),
     supabase.from('packages').select('*').order('sort_order'),
-    supabase.from('daily_personnel').select('*').order('created_at', { ascending: false }).limit(1),
+    supabase.from('daily_personnel').select('*').order('created_at', { ascending: true }),
     supabase.from('personnel_positions').select('*').order('sort_order'),
     supabase.from('equipment').select('*').order('sort_order'),
     supabase.from('risks').select('*').order('risk_number'),
     supabase.from('weekly_trends').select('*').order('created_at'),
   ]);
 
-  const latestPersonnel = personnelRecords?.[0];
+  const latestPersonnel = personnelRecords?.[personnelRecords.length - 1];
   const overallPkg = packages?.find(p => p.sort_order === 0);
   const overallPlan = Number(overallPkg?.plan_percent) || 0;
   const overallFact = Number(overallPkg?.fact_percent) || 0;
@@ -89,6 +89,13 @@ export async function getAllDashboardData() {
     overallPlan,
     remainingWork: +(100 - overallFact).toFixed(1),
     totalEquipment: totalEquip,
+    personnelHistory: (personnelRecords || []).map((r, i) => ({
+      day: i + 1,
+      date: r.record_date,
+      field: r.field_count || 0,
+      technical: r.technical || 0,
+      administrative: r.administrative || 0,
+    })),
     lastUpdated: new Date().toISOString(),
     isEmpty: !projectInfo && (!packages || packages.length === 0),
   };
