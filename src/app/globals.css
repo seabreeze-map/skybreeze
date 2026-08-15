@@ -973,6 +973,17 @@ a {
   color: var(--color-text-muted);
 }
 
+/* Hide number input spinners/arrows */
+.form-input[type="number"]::-webkit-outer-spin-button,
+.form-input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.form-input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 .form-select {
   width: 100%;
   padding: 10px 12px;

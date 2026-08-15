@@ -129,7 +129,7 @@ export default function AdminPage() {
 
   const updatePackage = (index, field, value) => {
     setPackages(prev => prev.map((pkg, i) =>
-      i === index ? { ...pkg, [field]: field === 'trend' ? value : Number(value) || 0 } : pkg
+      i === index ? { ...pkg, [field]: field === 'trend' ? value : value } : pkg
     ));
   };
 
@@ -150,7 +150,7 @@ export default function AdminPage() {
     try {
       const equipmentList = EQUIPMENT_TYPES.map(type => ({
         name: type,
-        count: equipment[type] || 0,
+        count: Number(equipment[type]) || 0,
       }));
 
       const response = await fetch('/api/data/save', {
@@ -159,13 +159,13 @@ export default function AdminPage() {
         body: JSON.stringify({
           general,
           packages: packages.map(p => ({
-            name: p.name, plan: p.plan, fact: p.fact, trend: p.trend,
+            name: p.name, plan: Number(p.plan) || 0, fact: Number(p.fact) || 0, trend: p.trend,
           })),
           personnel: {
             date: personnel.date,
-            administrative: personnel.administrative,
-            technical: personnel.technical,
-            field: personnel.field,
+            administrative: Number(personnel.administrative) || 0,
+            technical: Number(personnel.technical) || 0,
+            field: Number(personnel.field) || 0,
           },
           equipment: equipmentList,
           risks,
@@ -262,9 +262,9 @@ export default function AdminPage() {
               {packages.map((pkg, i) => (
                 <div key={i} className="package-row">
                   <span className="package-row__label">{pkg.name}</span>
-                  <input className="form-input" type="number" step="0.1" value={pkg.plan}
+                  <input className="form-input" type="text" inputMode="decimal" value={pkg.plan}
                     onChange={e => updatePackage(i, 'plan', e.target.value)} />
-                  <input className="form-input" type="number" step="0.1" value={pkg.fact}
+                  <input className="form-input" type="text" inputMode="decimal" value={pkg.fact}
                     onChange={e => updatePackage(i, 'fact', e.target.value)} />
                   <input className="form-input" type="text" value={pkg.trend}
                     onChange={e => updatePackage(i, 'trend', e.target.value)} placeholder="Trend/şərh yazın" />
@@ -284,23 +284,23 @@ export default function AdminPage() {
               </div>
               <div className="form-group">
                 <label className="form-label">İdari</label>
-                <input className="form-input" type="number" value={personnel.administrative}
-                  onChange={e => setPersonnel({...personnel, administrative: Number(e.target.value) || 0})} />
+                <input className="form-input" type="text" inputMode="numeric" value={personnel.administrative}
+                  onChange={e => setPersonnel({...personnel, administrative: e.target.value})} />
               </div>
               <div className="form-group">
                 <label className="form-label">Texniki</label>
-                <input className="form-input" type="number" value={personnel.technical}
-                  onChange={e => setPersonnel({...personnel, technical: Number(e.target.value) || 0})} />
+                <input className="form-input" type="text" inputMode="numeric" value={personnel.technical}
+                  onChange={e => setPersonnel({...personnel, technical: e.target.value})} />
               </div>
               <div className="form-group">
                 <label className="form-label">Sahə</label>
-                <input className="form-input" type="number" value={personnel.field}
-                  onChange={e => setPersonnel({...personnel, field: Number(e.target.value) || 0})} />
+                <input className="form-input" type="text" inputMode="numeric" value={personnel.field}
+                  onChange={e => setPersonnel({...personnel, field: e.target.value})} />
               </div>
               <div className="form-group">
                 <label className="form-label">Cəmi</label>
                 <input className="form-input" type="text" readOnly
-                  value={personnel.administrative + personnel.technical + personnel.field}
+                  value={(Number(personnel.administrative) || 0) + (Number(personnel.technical) || 0) + (Number(personnel.field) || 0)}
                   style={{ background: 'var(--color-bg)', fontWeight: 600 }} />
               </div>
             </div>
@@ -310,8 +310,8 @@ export default function AdminPage() {
               {EQUIPMENT_TYPES.map(type => (
                 <div key={type} className="equipment-item">
                   <label className="form-label">{type}</label>
-                  <input className="form-input" type="number" min="0" value={equipment[type] || 0}
-                    onChange={e => setEquipment({...equipment, [type]: Number(e.target.value) || 0})} />
+                  <input className="form-input" type="text" inputMode="numeric" value={equipment[type]}
+                    onChange={e => setEquipment({...equipment, [type]: e.target.value})} />
                 </div>
               ))}
             </div>
