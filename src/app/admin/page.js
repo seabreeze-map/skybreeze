@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import Header from '@/components/Header';
@@ -73,6 +73,20 @@ export default function AdminPage() {
     risk: '', status: '', level: 'Orta', action: '', deadline: '', state: 'Açıq'
   });
 
+  // Undo / Redo history stacks
+  const [history, setHistory] = useState([]);
+  const [future, setFuture] = useState([]);
+  const isUndoRedoAction = useRef(false);
+
+  // Helper to get snapshot
+  const getSnapshot = useCallback(() => ({
+    general: JSON.parse(JSON.stringify(general)),
+    packages: JSON.parse(JSON.stringify(packages)),
+    personnel: JSON.parse(JSON.stringify(personnel)),
+    equipment: JSON.parse(JSON.stringify(equipment)),
+    risks: JSON.parse(JSON.stringify(risks)),
+  }), [general, packages, personnel, equipment, risks]);
+
   // Auth check
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();
@@ -91,7 +105,7 @@ export default function AdminPage() {
   // Load existing data from Supabase
   useEffect(() => {
     if (!user) return;
-    fetch('/api/data/summary')
+    fetch('/api/data/summary', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
         if (data.general && data.general.reportDate) {
@@ -127,7 +141,120 @@ export default function AdminPage() {
     router.refresh();
   };
 
+  // Direct save payload function
+  const savePayload = async (payload, showMsg = true) => {
+    setSaving(true);
+    try {
+      const equipmentList = EQUIPMENT_TYPES.map(type => ({
+        name: type,
+        count: Number(payload.equipment[type]) || 0,
+      }));
+
+      const response = await fetch('/api/data/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          general: payload.general,
+          packages: payload.packages.map(p => ({
+            name: p.name, plan: Number(p.plan) || 0, fact: Number(p.fact) || 0, trend: p.trend,
+          })),
+          personnel: {
+            date: payload.personnel.date,
+            administrative: Number(payload.personnel.administrative) || 0,
+            technical: Number(payload.personnel.technical) || 0,
+            field: Number(payload.personnel.field) || 0,
+          },
+          equipment: equipmentList,
+          risks: payload.risks,
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        if (showMsg) setMessage({ type: 'success', text: 'Məlumatlar saytda anında yeniləndi! ⚡' });
+      } else {
+        if (showMsg) setMessage({ type: 'error', text: 'Xəta: ' + (result.errors?.join(', ') || 'Xəta baş verdi') });
+      }
+    } catch (err) {
+      if (showMsg) setMessage({ type: 'error', text: 'Xəta: ' + err.message });
+    }
+    setSaving(false);
+    setTimeout(() => setMessage({ type: '', text: '' }), 4000);
+  };
+
+  // Record history snapshot before user modification
+  const recordSnapshot = () => {
+    if (isUndoRedoAction.current) return;
+    const current = getSnapshot();
+    setHistory(prev => [...prev.slice(-20), current]);
+    setFuture([]); // reset future on new change
+  };
+
+  // Undo Handler
+  const handleUndo = async () => {
+    if (history.length === 0) return;
+    const current = getSnapshot();
+    const previous = history[history.length - 1];
+
+    isUndoRedoAction.current = true;
+    setFuture(prev => [current, ...prev]);
+    setHistory(prev => prev.slice(0, prev.length - 1));
+
+    // Apply previous state
+    setGeneral(previous.general);
+    setPackages(previous.packages);
+    setPersonnel(previous.personnel);
+    setEquipment(previous.equipment);
+    setRisks(previous.risks);
+
+    // Save and instantly broadcast to site
+    await savePayload(previous, true);
+    setTimeout(() => {
+      isUndoRedoAction.current = false;
+    }, 100);
+  };
+
+  // Redo Handler
+  const handleRedo = async () => {
+    if (future.length === 0) return;
+    const current = getSnapshot();
+    const next = future[0];
+
+    isUndoRedoAction.current = true;
+    setHistory(prev => [...prev, current]);
+    setFuture(prev => prev.slice(1));
+
+    // Apply next state
+    setGeneral(next.general);
+    setPackages(next.packages);
+    setPersonnel(next.personnel);
+    setEquipment(next.equipment);
+    setRisks(next.risks);
+
+    // Save and instantly broadcast to site
+    await savePayload(next, true);
+    setTimeout(() => {
+      isUndoRedoAction.current = false;
+    }, 100);
+  };
+
+  // Keyboard shortcut listener (Ctrl+Z for Undo, Ctrl+Y or Ctrl+Shift+Z for Redo)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  });
+
   const updatePackage = (index, field, value) => {
+    recordSnapshot();
     setPackages(prev => prev.map((pkg, i) =>
       i === index ? { ...pkg, [field]: field === 'trend' ? value : value } : pkg
     ));
@@ -135,56 +262,18 @@ export default function AdminPage() {
 
   const addRisk = () => {
     if (!newRisk.risk.trim()) return;
+    recordSnapshot();
     setRisks(prev => [...prev, { ...newRisk, id: prev.length + 1 }]);
     setNewRisk({ risk: '', status: '', level: 'Orta', action: '', deadline: '', state: 'Açıq' });
   };
 
   const removeRisk = (index) => {
+    recordSnapshot();
     setRisks(prev => prev.filter((_, i) => i !== index).map((r, i) => ({ ...r, id: i + 1 })));
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    setMessage({ type: '', text: '' });
-
-    try {
-      const equipmentList = EQUIPMENT_TYPES.map(type => ({
-        name: type,
-        count: Number(equipment[type]) || 0,
-      }));
-
-      const response = await fetch('/api/data/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          general,
-          packages: packages.map(p => ({
-            name: p.name, plan: Number(p.plan) || 0, fact: Number(p.fact) || 0, trend: p.trend,
-          })),
-          personnel: {
-            date: personnel.date,
-            administrative: Number(personnel.administrative) || 0,
-            technical: Number(personnel.technical) || 0,
-            field: Number(personnel.field) || 0,
-          },
-          equipment: equipmentList,
-          risks,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        setMessage({ type: 'success', text: 'Məlumatlar uğurla yadda saxlanıldı!' });
-      } else {
-        setMessage({ type: 'error', text: 'Xəta: ' + (result.errors?.join(', ') || 'Bilinməyən xəta') });
-      }
-    } catch (err) {
-      setMessage({ type: 'error', text: 'Xəta: ' + err.message });
-    }
-
-    setSaving(false);
-    setTimeout(() => setMessage({ type: '', text: '' }), 5000);
+  const handleSave = () => {
+    savePayload(getSnapshot(), true);
   };
 
   if (loading) {
@@ -200,13 +289,39 @@ export default function AdminPage() {
     <>
       <Header isAdmin user={user} onSignOut={handleSignOut} />
       <main className="main-content">
-        <div className="page-header">
-          <h1 className="page-header__title">Admin Panel</h1>
-          <p className="page-header__desc">Məlumatları daxil edin və bazaya göndərin</p>
+        <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h1 className="page-header__title">Admin Panel</h1>
+            <p className="page-header__desc">Məlumatları daxil edin. Dəyişikliklər və Undo anında canlı yenilənir.</p>
+          </div>
+
+          {/* Quick Undo / Redo toolbar */}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button
+              type="button"
+              className="btn btn--outline btn--sm"
+              onClick={handleUndo}
+              disabled={history.length === 0 || saving}
+              title="Geri al (Ctrl+Z)"
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: history.length === 0 ? 0.5 : 1 }}
+            >
+              ↩️ Geri al {history.length > 0 && `(${history.length})`}
+            </button>
+            <button
+              type="button"
+              className="btn btn--outline btn--sm"
+              onClick={handleRedo}
+              disabled={future.length === 0 || saving}
+              title="İrəli al (Ctrl+Y)"
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: future.length === 0 ? 0.5 : 1 }}
+            >
+              ↪️ İrəli al {future.length > 0 && `(${future.length})`}
+            </button>
+          </div>
         </div>
 
         {message.text && (
-          <div className={message.type === 'success' ? 'form-success' : 'form-error'}>
+          <div className={message.type === 'success' ? 'form-success' : 'form-error'} style={{ transition: 'all 0.3s ease' }}>
             {message.text}
           </div>
         )}
@@ -218,16 +333,19 @@ export default function AdminPage() {
               <div className="form-group">
                 <label className="form-label">Hesabat Tarixi</label>
                 <input className="form-input" type="text" value={general.reportDate}
+                  onFocus={recordSnapshot}
                   onChange={e => setGeneral({...general, reportDate: e.target.value})} placeholder="gg.aa.iiii" />
               </div>
               <div className="form-group">
                 <label className="form-label">Layihə Adı</label>
                 <input className="form-input" type="text" value={general.projectName}
+                  onFocus={recordSnapshot}
                   onChange={e => setGeneral({...general, projectName: e.target.value})} />
               </div>
               <div className="form-group">
                 <label className="form-label">Yer</label>
                 <input className="form-input" type="text" value={general.location}
+                  onFocus={recordSnapshot}
                   onChange={e => setGeneral({...general, location: e.target.value})} />
               </div>
             </div>
@@ -235,16 +353,19 @@ export default function AdminPage() {
               <div className="form-group">
                 <label className="form-label">Podratçı</label>
                 <input className="form-input" type="text" value={general.contractor}
+                  onFocus={recordSnapshot}
                   onChange={e => setGeneral({...general, contractor: e.target.value})} />
               </div>
               <div className="form-group">
                 <label className="form-label">Müqavilə Başlanğıc</label>
                 <input className="form-input" type="text" value={general.contractStart}
+                  onFocus={recordSnapshot}
                   onChange={e => setGeneral({...general, contractStart: e.target.value})} placeholder="gg.aa.iiii" />
               </div>
               <div className="form-group">
                 <label className="form-label">Müqavilə Bitmə</label>
                 <input className="form-input" type="text" value={general.contractEnd}
+                  onFocus={recordSnapshot}
                   onChange={e => setGeneral({...general, contractEnd: e.target.value})} placeholder="gg.aa.iiii" />
               </div>
             </div>
@@ -263,10 +384,13 @@ export default function AdminPage() {
                 <div key={i} className="package-row">
                   <span className="package-row__label">{pkg.name}</span>
                   <input className="form-input" type="text" inputMode="decimal" value={pkg.plan}
+                    onFocus={recordSnapshot}
                     onChange={e => updatePackage(i, 'plan', e.target.value)} />
                   <input className="form-input" type="text" inputMode="decimal" value={pkg.fact}
+                    onFocus={recordSnapshot}
                     onChange={e => updatePackage(i, 'fact', e.target.value)} />
                   <input className="form-input" type="text" value={pkg.trend}
+                    onFocus={recordSnapshot}
                     onChange={e => updatePackage(i, 'trend', e.target.value)} placeholder="Trend/şərh yazın" />
                 </div>
               ))}
@@ -280,22 +404,26 @@ export default function AdminPage() {
               <div className="form-group">
                 <label className="form-label">Tarix</label>
                 <input className="form-input" type="text" value={personnel.date}
-                  onChange={e => setPersonnel({...personnel, date: e.target.value})} placeholder="gg.aa.iiii" />
+                  onFocus={recordSnapshot}
+                  onChange={e => { recordSnapshot(); setPersonnel({...personnel, date: e.target.value}); }} placeholder="gg.aa.iiii" />
               </div>
               <div className="form-group">
                 <label className="form-label">İdari</label>
                 <input className="form-input" type="text" inputMode="numeric" value={personnel.administrative}
-                  onChange={e => setPersonnel({...personnel, administrative: e.target.value})} />
+                  onFocus={recordSnapshot}
+                  onChange={e => { recordSnapshot(); setPersonnel({...personnel, administrative: e.target.value}); }} />
               </div>
               <div className="form-group">
                 <label className="form-label">Texniki</label>
                 <input className="form-input" type="text" inputMode="numeric" value={personnel.technical}
-                  onChange={e => setPersonnel({...personnel, technical: e.target.value})} />
+                  onFocus={recordSnapshot}
+                  onChange={e => { recordSnapshot(); setPersonnel({...personnel, technical: e.target.value}); }} />
               </div>
               <div className="form-group">
                 <label className="form-label">Sahə</label>
                 <input className="form-input" type="text" inputMode="numeric" value={personnel.field}
-                  onChange={e => setPersonnel({...personnel, field: e.target.value})} />
+                  onFocus={recordSnapshot}
+                  onChange={e => { recordSnapshot(); setPersonnel({...personnel, field: e.target.value}); }} />
               </div>
               <div className="form-group">
                 <label className="form-label">Cəmi</label>
@@ -311,7 +439,8 @@ export default function AdminPage() {
                 <div key={type} className="equipment-item">
                   <label className="form-label">{type}</label>
                   <input className="form-input" type="text" inputMode="numeric" value={equipment[type]}
-                    onChange={e => setEquipment({...equipment, [type]: e.target.value})} />
+                    onFocus={recordSnapshot}
+                    onChange={e => { recordSnapshot(); setEquipment({...equipment, [type]: e.target.value}); }} />
                 </div>
               ))}
             </div>
@@ -400,10 +529,31 @@ export default function AdminPage() {
           </AccordionSection>
         </div>
 
-        {/* Save Button */}
-        <div className="admin-actions">
-          <button className="btn btn--accent" onClick={handleSave} disabled={saving}>
-            {saving ? 'Yazılır...' : '💾 Yadda Saxla'}
+        {/* Action Buttons */}
+        <div className="admin-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              type="button"
+              className="btn btn--outline"
+              onClick={handleUndo}
+              disabled={history.length === 0 || saving}
+              title="Geri al (Ctrl+Z)"
+            >
+              ↩️ Geri al (Ctrl+Z)
+            </button>
+            <button
+              type="button"
+              className="btn btn--outline"
+              onClick={handleRedo}
+              disabled={future.length === 0 || saving}
+              title="İrəli al (Ctrl+Y)"
+            >
+              ↪️ İrəli al (Ctrl+Y)
+            </button>
+          </div>
+
+          <button className="btn btn--accent" onClick={handleSave} disabled={saving} style={{ minWidth: '160px' }}>
+            {saving ? '⚡ Saxlanılır...' : '💾 Yadda Saxla'}
           </button>
         </div>
       </main>
