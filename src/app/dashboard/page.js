@@ -19,7 +19,10 @@ export default function DashboardPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch('/api/data/summary');
+      const res = await fetch('/api/data/summary', {
+        cache: 'no-store',
+        headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
+      });
       const json = await res.json();
       setData(json);
     } catch (err) {
@@ -31,8 +34,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchData();
-    // Check auth status
     const supabase = createSupabaseBrowserClient();
+
+    // Check auth status
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) {
         router.push('/');
@@ -40,6 +44,31 @@ export default function DashboardPage() {
         setUser(user);
       }
     });
+
+    // Realtime Supabase Subscription for instant updates
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public' },
+        () => {
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    // Refresh when user focuses the tab
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchData();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      supabase.removeChannel(channel);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [fetchData, router]);
 
   const handleSignOut = async () => {
@@ -93,7 +122,7 @@ export default function DashboardPage() {
         <RefreshIndicator
           lastUpdated={data?.lastUpdated}
           onRefresh={fetchData}
-          autoInterval={30}
+          autoInterval={10}
         />
 
         {/* Hero Stats */}
