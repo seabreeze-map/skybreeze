@@ -15,6 +15,7 @@ export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [period, setPeriod] = useState('monthly'); // default 'monthly' as requested
   const router = useRouter();
 
   const fetchData = useCallback(async () => {
@@ -98,17 +99,40 @@ export default function DashboardPage() {
   const equipmentData = data?.equipment || [];
   const risks = data?.risks || [];
   const weeklyTrend = data?.weeklyTrend || [];
+  const monthlyTrend = data?.monthlyTrend || [];
 
   return (
     <>
       <Header user={user} onSignOut={handleSignOut} />
       <main className="main-content">
-        {/* Page Header */}
-        <div className="page-header">
-          <h1 className="page-header__title">🏗️ {general.projectName || 'Sky Breeze'} — Layihə Dashboard</h1>
-          <p className="page-header__desc">
-            {general.location || ''} | {general.contractor || ''} | Müqavilə: {general.contractStart || ''} – {general.contractEnd || ''}
-          </p>
+        {/* Page Header & Period Selector */}
+        <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.25rem' }}>
+          <div>
+            <h1 className="page-header__title">
+              🏗️ {general.projectName || 'Sky Breeze'} — {period === 'monthly' ? 'Aylıq' : 'Həftəlik'} Tikinti Hesabatı
+            </h1>
+            <p className="page-header__desc">
+              {general.location || ''} | {general.contractor || ''} | Müqavilə: {general.contractStart || ''} – {general.contractEnd || ''}
+            </p>
+          </div>
+
+          {/* Global Period Switcher (Aylıq default / Həftəlik) */}
+          <div className="period-segmented-control">
+            <button
+              type="button"
+              className={`period-segment-btn ${period === 'monthly' ? 'active' : ''}`}
+              onClick={() => setPeriod('monthly')}
+            >
+              🗓️ Aylıq Hesabat (Default)
+            </button>
+            <button
+              type="button"
+              className={`period-segment-btn ${period === 'weekly' ? 'active' : ''}`}
+              onClick={() => setPeriod('weekly')}
+            >
+              📊 Həftəlik Hesabat
+            </button>
+          </div>
         </div>
 
         {/* Empty Data Banner */}
@@ -130,7 +154,7 @@ export default function DashboardPage() {
           <StatCard
             title="Ümumi İcra"
             value={`${data?.overallFact || 0}%`}
-            subtitle={`Plan: ${data?.overallPlan || 0}%`}
+            subtitle={`Plan: ${data?.overallPlan || 0}% (${period === 'monthly' ? 'Aylıq hədəf' : 'Həftəlik hədəf'})`}
             type={(data?.overallFact || 0) >= (data?.overallPlan || 0) ? 'success' : 'warning'}
             icon="📊"
           />
@@ -167,8 +191,13 @@ export default function DashboardPage() {
         {/* Charts Row 1: Packages & Trend */}
         <div className="dashboard-section">
           <div className="charts-grid">
-            <PackageChart data={packages} />
-            <TrendChart data={weeklyTrend} />
+            <PackageChart data={packages} period={period} />
+            <TrendChart
+              monthlyData={monthlyTrend}
+              weeklyData={weeklyTrend}
+              initialPeriod={period}
+              onPeriodChange={setPeriod}
+            />
           </div>
         </div>
 
@@ -194,7 +223,7 @@ export default function DashboardPage() {
           borderTop: '1px solid var(--color-border)',
           marginTop: 'var(--space-xl)'
         }}>
-          Sky Breeze Tikinti İzləmə Sistemi © {new Date().getFullYear()} | Hesabat tarixi: {general.reportDate || '—'}
+          Sky Breeze Tikinti İzləmə Sistemi © {new Date().getFullYear()} | {period === 'monthly' ? 'Aylıq' : 'Həftəlik'} Hesabat | Hesabat tarixi: {general.reportDate || '—'}
         </footer>
       </main>
     </>

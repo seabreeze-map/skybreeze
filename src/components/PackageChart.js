@@ -1,7 +1,7 @@
 'use client';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
-export default function PackageChart({ data }) {
+export default function PackageChart({ data, period = 'monthly' }) {
   if (!data || data.length === 0) return null;
 
   const chartData = data.map(pkg => ({
@@ -32,12 +32,12 @@ export default function PackageChart({ data }) {
     <div className="chart-container">
       <h3 className="chart-title">Paketlər Üzrə Plan vs Fakt</h3>
       <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E8EAED" />
-          <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#5F6368' }} />
-          <YAxis unit="%" tick={{ fontSize: 12, fill: '#5F6368' }} />
+        <BarChart data={chartData} margin={{ top: 10, right: 15, left: -10, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border, #e5e7eb)" vertical={false} />
+          <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'var(--color-text-muted, #94a3b8)' }} axisLine={{ stroke: 'var(--color-border, #e5e7eb)' }} tickLine={false} />
+          <YAxis unit="%" tick={{ fontSize: 12, fill: 'var(--color-text-muted, #94a3b8)' }} axisLine={false} tickLine={false} />
           <Tooltip content={<CustomTooltip />} />
-          <Legend />
+          <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '13px', paddingTop: '10px' }} />
           <Bar dataKey="Plan" fill="#2980B9" radius={[3, 3, 0, 0]} />
           <Bar dataKey="Fakt" radius={[3, 3, 0, 0]}>
             {chartData.map((entry, index) => (
@@ -55,10 +55,10 @@ export default function PackageChart({ data }) {
           <div key={i} className={`deviation-card ${pkg.currDeviation >= 0 ? 'positive' : 'negative'}`}>
             <span className="deviation-card__name">{pkg.name}</span>
             <span className="deviation-card__value">
-              {pkg.currDeviation >= 0 ? '+' : ''}{pkg.currDeviation}%
+              Kənarlaşma: {pkg.currDeviation >= 0 ? '+' : ''}{pkg.currDeviation}%
             </span>
             <span className="deviation-card__change">
-              Həftəlik: {pkg.weeklyChange >= 0 ? '+' : ''}{pkg.weeklyChange}%
+              {period === 'monthly' ? 'Aylıq dinamika' : 'Həftəlik dinamika'}: {pkg.weeklyChange !== undefined && pkg.weeklyChange !== 0 ? (pkg.weeklyChange >= 0 ? `+${pkg.weeklyChange}%` : `${pkg.weeklyChange}%`) : (pkg.currDeviation >= 0 ? 'Müsbət' : 'Nəzarətdə')}
             </span>
           </div>
         ))}
