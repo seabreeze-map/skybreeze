@@ -89,13 +89,19 @@ export async function getAllDashboardData() {
     overallPlan,
     remainingWork: +(100 - overallFact).toFixed(1),
     totalEquipment: totalEquip,
-    personnelHistory: (personnelRecords || []).map((r, i) => ({
-      day: i + 1,
-      date: r.record_date,
-      field: r.field_count || 0,
-      technical: r.technical || 0,
-      administrative: r.administrative || 0,
-    })),
+    personnelHistory: (personnelRecords || []).map((r, i) => {
+      const dStr = r.record_date || '';
+      const parts = dStr.split('.');
+      const shortDate = parts.length >= 2 ? `${parts[0]}.${parts[1]}` : (dStr || `${i + 1}`);
+      return {
+        day: i + 1,
+        date: dStr || `Gün ${i + 1}`,
+        displayDate: shortDate,
+        field: r.field_count || 0,
+        technical: r.technical || 0,
+        administrative: r.administrative || 0,
+      };
+    }),
     lastUpdated: new Date().toISOString(),
     isEmpty: !projectInfo && (!packages || packages.length === 0),
   };
