@@ -15,7 +15,7 @@ export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
-  const [period, setPeriod] = useState('monthly'); // default 'monthly' as requested
+  const [period, setPeriod] = useState('weekly'); // Default olaraq həftəlik
   const router = useRouter();
 
   const fetchData = useCallback(async () => {
@@ -80,6 +80,10 @@ export default function DashboardPage() {
     router.refresh();
   };
 
+  const handleExportPDF = () => {
+    window.print();
+  };
+
   if (loading) {
     return (
       <>
@@ -103,34 +107,33 @@ export default function DashboardPage() {
 
   return (
     <>
-      <Header user={user} onSignOut={handleSignOut} />
+      <Header
+        user={user}
+        onSignOut={handleSignOut}
+        period={period}
+        onPeriodChange={setPeriod}
+        onExportPDF={handleExportPDF}
+      />
       <main className="main-content">
-        {/* Page Header & Period Selector */}
+        {/* Page Header */}
         <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.25rem' }}>
           <div>
             <h1 className="page-header__title">
-              🏗️ {general.projectName || 'Sky Breeze'} — {period === 'monthly' ? 'Aylıq' : 'Həftəlik'} Tikinti Hesabatı
+              🏗️ {general.projectName || 'Sky Breeze'} — {period === 'weekly' ? 'Həftəlik' : 'Aylıq'} Tikinti Hesabatı
             </h1>
             <p className="page-header__desc">
               {general.location || ''} | {general.contractor || ''} | Müqavilə: {general.contractStart || ''} – {general.contractEnd || ''}
             </p>
           </div>
 
-          {/* Global Period Switcher (Aylıq default / Həftəlik) */}
-          <div className="period-segmented-control">
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <button
               type="button"
-              className={`period-segment-btn ${period === 'monthly' ? 'active' : ''}`}
-              onClick={() => setPeriod('monthly')}
+              onClick={handleExportPDF}
+              className="btn btn--outline btn--sm no-print"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              🗓️ Aylıq Hesabat (Default)
-            </button>
-            <button
-              type="button"
-              className={`period-segment-btn ${period === 'weekly' ? 'active' : ''}`}
-              onClick={() => setPeriod('weekly')}
-            >
-              📊 Həftəlik Hesabat
+              📄 PDF Yüklə
             </button>
           </div>
         </div>
@@ -154,7 +157,7 @@ export default function DashboardPage() {
           <StatCard
             title="Ümumi İcra"
             value={`${data?.overallFact || 0}%`}
-            subtitle={`Plan: ${data?.overallPlan || 0}% (${period === 'monthly' ? 'Aylıq hədəf' : 'Həftəlik hədəf'})`}
+            subtitle={`Plan: ${data?.overallPlan || 0}% (${period === 'weekly' ? 'Həftəlik hədəf' : 'Aylıq hədəf'})`}
             type={(data?.overallFact || 0) >= (data?.overallPlan || 0) ? 'success' : 'warning'}
             icon="📊"
           />
@@ -205,7 +208,7 @@ export default function DashboardPage() {
         <div className="dashboard-section">
           <div className="charts-grid">
             <PersonnelPieChart personnel={personnel} byPosition={personnelByPosition} history={data?.personnelHistory || []} />
-            <EquipmentChart data={equipmentData} />
+            <EquipmentChart data={equipmentData} history={data?.equipmentHistory || []} />
           </div>
         </div>
 
@@ -223,7 +226,7 @@ export default function DashboardPage() {
           borderTop: '1px solid var(--color-border)',
           marginTop: 'var(--space-xl)'
         }}>
-          Sky Breeze Tikinti İzləmə Sistemi © {new Date().getFullYear()} | {period === 'monthly' ? 'Aylıq' : 'Həftəlik'} Hesabat | Hesabat tarixi: {general.reportDate || '—'}
+          Sky Breeze Tikinti İzləmə Sistemi © {new Date().getFullYear()} | {period === 'weekly' ? 'Həftəlik' : 'Aylıq'} Hesabat | Hesabat tarixi: {general.reportDate || '—'}
         </footer>
       </main>
     </>

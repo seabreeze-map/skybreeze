@@ -3,7 +3,14 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-export default function Header({ isAdmin = false, user = null, onSignOut }) {
+export default function Header({
+  isAdmin = false,
+  user = null,
+  onSignOut,
+  period = null,
+  onPeriodChange = null,
+  onExportPDF = null
+}) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -24,13 +31,51 @@ export default function Header({ isAdmin = false, user = null, onSignOut }) {
           </div>
         </Link>
 
+        {/* Top Period Switcher & Actions when in Dashboard */}
+        {period && onPeriodChange && (
+          <div className="header-period-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="period-segmented-control" style={{ padding: '3px', background: 'var(--color-bg)' }}>
+              <button
+                type="button"
+                className={`period-segment-btn ${period === 'weekly' ? 'active' : ''}`}
+                onClick={() => onPeriodChange('weekly')}
+                style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+              >
+                📊 Həftəlik (Default)
+              </button>
+              <button
+                type="button"
+                className={`period-segment-btn ${period === 'monthly' ? 'active' : ''}`}
+                onClick={() => onPeriodChange('monthly')}
+                style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+              >
+                🗓️ Aylıq
+              </button>
+            </div>
+
+            {onExportPDF && (
+              <button
+                type="button"
+                onClick={onExportPDF}
+                className="btn btn--outline btn--sm no-print"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', padding: '6px 12px' }}
+                title="Səhifəni PDF kimi çap et və ya yüklə"
+              >
+                📄 PDF Yüklə
+              </button>
+            )}
+          </div>
+        )}
+
         <nav className={`header-nav ${mobileMenuOpen ? 'open' : ''}`}>
-          <Link href="/dashboard" className="header-nav-link">Dashboard</Link>
           {user ? (
             <>
-              {user.email === 'kanan.gahramanov@seabreeze.az' && (
-                <Link href="/admin" className="header-nav-link">Admin Panel</Link>
-              )}
+              {user.email === 'kanan.gahramanov@seabreeze.az' ? (
+                <>
+                  <Link href="/dashboard" className="header-nav-link">Hesabat</Link>
+                  <Link href="/admin" className="header-nav-link">Admin Panel</Link>
+                </>
+              ) : null}
               <span className="header-user-badge" style={{ fontSize: '0.75rem', opacity: 0.8, color: 'var(--color-text-secondary, #666)' }}>
                 {user.email}
               </span>

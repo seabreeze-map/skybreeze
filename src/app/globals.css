@@ -651,20 +651,33 @@ a {
   margin-top: var(--space-xs);
 }
 
-/* Deviation Cards */
+/* Remove outline and border on chart clicks */
+.recharts-wrapper,
+.recharts-wrapper *,
+.recharts-surface,
+.recharts-surface:focus,
+.chart-container,
+.chart-container *:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+/* Deviation Cards - 4 in a single clean row */
 .deviation-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: var(--space-sm);
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-xs);
   margin-top: var(--space-md);
 }
 
 .deviation-card {
-  padding: var(--space-sm) var(--space-md);
+  padding: 8px 10px;
   border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
 .deviation-card.positive {
@@ -676,22 +689,29 @@ a {
 }
 
 .deviation-card__name {
-  font-size: var(--font-size-xs);
+  font-size: 0.72rem;
   color: var(--color-text-secondary);
-  font-weight: 500;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .deviation-card__value {
-  font-size: var(--font-size-lg);
+  font-size: 1rem;
   font-weight: 700;
+  line-height: 1.2;
 }
 
 .deviation-card.positive .deviation-card__value { color: var(--color-success); }
 .deviation-card.negative .deviation-card__value { color: var(--color-danger); }
 
 .deviation-card__change {
-  font-size: var(--font-size-xs);
+  font-size: 0.68rem;
   color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Personnel Layout */
@@ -1912,4 +1932,55 @@ textarea.form-input {
   color: #ffffff;
   font-weight: 600;
   box-shadow: 0 2px 6px rgba(230, 126, 34, 0.25);
+}
+
+/* ============================================
+   PRINT / PDF EXPORT STYLES
+   ============================================ */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt;
+  }
+
+  .header,
+  .refresh-indicator,
+  .no-print,
+  .portal__footer,
+  .header-mobile-toggle,
+  .theme-switcher,
+  button {
+    display: none !important;
+  }
+
+  .main-content {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .page-header {
+    margin-bottom: 12px !important;
+    padding-bottom: 8px !important;
+    border-bottom: 2px solid #2C3E50 !important;
+  }
+
+  .chart-container,
+  .stat-card,
+  .table-scroll {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 12px !important;
+  }
 }

@@ -110,6 +110,21 @@ export async function getAllDashboardData() {
       technical: r.technical || 0,
       administrative: r.administrative || 0,
     })),
+    equipmentHistory: (personnelRecords && personnelRecords.length > 0)
+      ? personnelRecords.map((r, i) => {
+          const item = { day: i + 1, date: r.record_date };
+          (equipmentData || []).forEach(e => {
+            item[e.name] = e.count || 0;
+          });
+          return item;
+        })
+      : (equipmentData || []).length > 0
+        ? [{
+            day: 1,
+            date: projectInfo?.report_date || 'Cari',
+            ...Object.fromEntries((equipmentData || []).map(e => [e.name, e.count || 0]))
+          }]
+        : [],
     lastUpdated: new Date().toISOString(),
     isEmpty: !projectInfo && (!packages || packages.length === 0),
   };

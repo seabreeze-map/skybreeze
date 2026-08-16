@@ -7,12 +7,14 @@ const COLORS = {
   administrative: '#2980B9',
 };
 
-export default function PersonnelPieChart({ personnel, byPosition, history }) {
+export default function PersonnelPieChart({ personnel, byPosition, history = [] }) {
   if (!personnel) return null;
 
   const chartData = history && history.length > 0
     ? history
-    : [{ day: 1, field: personnel.field, technical: personnel.technical, administrative: personnel.administrative }];
+    : [{ day: 1, date: 'Cari', field: personnel.field, technical: personnel.technical, administrative: personnel.administrative }];
+
+  const xDataKey = (chartData[0]?.date && chartData[0]?.date !== 'Cari') ? 'date' : 'day';
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
@@ -27,7 +29,7 @@ export default function PersonnelPieChart({ personnel, byPosition, history }) {
         boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
       }}>
         <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--color-text, #1a1a2e)' }}>
-          Gün {label}
+          {typeof label === 'number' ? `Gün ${label}` : `Tarix: ${label}`}
         </div>
         {payload.map((p, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
@@ -37,7 +39,7 @@ export default function PersonnelPieChart({ personnel, byPosition, history }) {
           </div>
         ))}
         <div style={{ borderTop: '1px solid var(--color-border, #e5e7eb)', marginTop: 4, paddingTop: 4, fontWeight: 600, color: 'var(--color-text, #1a1a2e)' }}>
-          Cəmi: {total}
+          Cəmi: {total} nəfər
         </div>
       </div>
     );
@@ -50,7 +52,7 @@ export default function PersonnelPieChart({ personnel, byPosition, history }) {
         <BarChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border, #e5e7eb)" vertical={false} />
           <XAxis
-            dataKey="day"
+            dataKey={xDataKey}
             tick={{ fontSize: 12, fill: 'var(--color-text-muted, #94a3b8)' }}
             axisLine={{ stroke: 'var(--color-border, #e5e7eb)' }}
             tickLine={false}
