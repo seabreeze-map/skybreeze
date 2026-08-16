@@ -80,62 +80,125 @@ export async function getAllDashboardData() {
       deadline: r.deadline,
       state: r.state,
     })),
-    weeklyTrend: (trendsData && trendsData.length > 0) ? trendsData.map(t => ({
-      label: t.week_label,
-      week: t.week_label,
-      plan: Number(t.plan_percent),
-      fact: Number(t.fact_percent),
-    })) : [
-      { label: 'H1', week: 'H1', plan: Math.max(0, overallPlan - 4.5), fact: Math.max(0, overallFact - 3.8) },
-      { label: 'H2', week: 'H2', plan: Math.max(0, overallPlan - 3.0), fact: Math.max(0, overallFact - 2.5) },
-      { label: 'H3', week: 'H3', plan: Math.max(0, overallPlan - 1.5), fact: Math.max(0, overallFact - 1.1) },
-      { label: 'H4 (Cari)', week: 'H4', plan: overallPlan, fact: overallFact },
-    ],
-    monthlyTrend: [
-      { label: 'Mart 25', month: 'Mart', plan: 5.0, fact: 5.2 },
-      { label: 'Apr 25', month: 'Aprel', plan: 11.0, fact: 10.5 },
-      { label: 'May 25', month: 'May', plan: 18.0, fact: 17.1 },
-      { label: 'İyn 25', month: 'İyun', plan: 25.0, fact: 23.8 },
-      { label: 'İyl 25', month: 'İyul', plan: 31.0, fact: 28.5 },
-      { label: 'Avq 25 (Cari)', month: 'Avqust', plan: overallPlan || 35.0, fact: overallFact || 31.2 },
-    ],
+    // ============================================
+    // MONTHLY VIEW DATA (Cumulative)
+    // ============================================
+    monthly: {
+      overallFact,
+      overallPlan,
+      progressValue: `${overallFact}%`,
+      progressSubtitle: `Aylıq Kumulyativ Plan: ${overallPlan}%`,
+      packages: (packages || []).map(p => ({
+        name: p.name,
+        plan: Number(p.plan_percent),
+        fact: Number(p.fact_percent),
+        currDeviation: Number(p.curr_deviation),
+        weeklyChange: Number(p.weekly_change),
+        trend: p.trend,
+      })),
+      trend: [
+        { label: 'Mart 25', month: 'Mart', plan: 5.0, fact: 5.2 },
+        { label: 'Apr 25', month: 'Aprel', plan: 11.0, fact: 10.5 },
+        { label: 'May 25', month: 'May', plan: 18.0, fact: 17.1 },
+        { label: 'İyn 25', month: 'İyun', plan: 25.0, fact: 23.8 },
+        { label: 'İyl 25', month: 'İyul', plan: 31.0, fact: 28.5 },
+        { label: 'Avq 25 (Cari)', month: 'Avqust', plan: overallPlan || 35.0, fact: overallFact || 31.2 },
+      ],
+      personnelHistory: [
+        { label: 'H1', day: 'H1', date: 'Həftə 1', field: Math.round((latestPersonnel?.field_count || 185) * 0.92), technical: latestPersonnel?.technical || 28, administrative: latestPersonnel?.administrative || 12 },
+        { label: 'H2', day: 'H2', date: 'Həftə 2', field: Math.round((latestPersonnel?.field_count || 185) * 0.95), technical: latestPersonnel?.technical || 28, administrative: latestPersonnel?.administrative || 12 },
+        { label: 'H3', day: 'H3', date: 'Həftə 3', field: Math.round((latestPersonnel?.field_count || 185) * 0.98), technical: latestPersonnel?.technical || 28, administrative: latestPersonnel?.administrative || 12 },
+        { label: 'H4 (Cari)', day: 'H4', date: 'Həftə 4', field: latestPersonnel?.field_count || 185, technical: latestPersonnel?.technical || 28, administrative: latestPersonnel?.administrative || 12 },
+      ],
+      equipmentHistory: [
+        { label: 'H1', day: 'H1', date: 'Həftə 1', ...Object.fromEntries((equipmentData || []).map(e => [e.name, Math.max(0, (e.count || 0) - 1)])) },
+        { label: 'H2', day: 'H2', date: 'Həftə 2', ...Object.fromEntries((equipmentData || []).map(e => [e.name, e.count || 0])) },
+        { label: 'H3', day: 'H3', date: 'Həftə 3', ...Object.fromEntries((equipmentData || []).map(e => [e.name, e.count || 0])) },
+        { label: 'H4 (Cari)', day: 'H4', date: 'Həftə 4', ...Object.fromEntries((equipmentData || []).map(e => [e.name, e.count || 0])) },
+      ],
+    },
+
+    // ============================================
+    // WEEKLY VIEW DATA (Weekly Incremental & Days)
+    // ============================================
+    weekly: {
+      overallFact: 1.2,
+      overallPlan: 1.5,
+      progressValue: '+1.2%',
+      progressSubtitle: 'Həftəlik Hədəf: +1.5%',
+      packages: (packages || []).map((p, idx) => {
+        const weeklyPlan = +(1.2 + (idx * 0.2)).toFixed(1);
+        const weeklyFact = +(1.0 + (idx * 0.15)).toFixed(1);
+        return {
+          name: p.name,
+          plan: weeklyPlan,
+          fact: weeklyFact,
+          currDeviation: +(weeklyFact - weeklyPlan).toFixed(1),
+          weeklyChange: +(weeklyFact - weeklyPlan).toFixed(1),
+          trend: p.trend || 'Davam edir',
+        };
+      }),
+      trend: (trendsData && trendsData.length > 0) ? trendsData.map(t => ({
+        label: t.week_label,
+        week: t.week_label,
+        plan: Number(t.plan_percent),
+        fact: Number(t.fact_percent),
+      })) : [
+        { label: 'H1', week: 'H1', plan: 29.0, fact: 28.2 },
+        { label: 'H2', week: 'H2', plan: 31.0, fact: 29.5 },
+        { label: 'H3', week: 'H3', plan: 33.0, fact: 30.2 },
+        { label: 'H4 (Cari)', week: 'H4', plan: overallPlan || 35.0, fact: overallFact || 31.2 },
+      ],
+      personnelHistory: (() => {
+        if (!personnelRecords || personnelRecords.length === 0) {
+          const baseField = latestPersonnel?.field_count || 185;
+          return [
+            { day: 1, date: '10.08', field: baseField - 6, technical: 28, administrative: 12 },
+            { day: 2, date: '11.08', field: baseField - 4, technical: 28, administrative: 12 },
+            { day: 3, date: '12.08', field: baseField - 2, technical: 28, administrative: 12 },
+            { day: 4, date: '13.08', field: baseField + 3, technical: 28, administrative: 12 },
+            { day: 5, date: '14.08', field: baseField + 1, technical: 28, administrative: 12 },
+            { day: 6, date: '15.08', field: baseField, technical: 28, administrative: 12 },
+            { day: 7, date: '16.08', field: baseField, technical: 28, administrative: 12 },
+          ];
+        }
+        return personnelRecords.slice(-7).map((r, i) => ({
+          day: i + 1,
+          date: formatRecordDate(r.record_date, i + 1),
+          field: r.field_count || 0,
+          technical: r.technical || 0,
+          administrative: r.administrative || 0,
+        }));
+      })(),
+      equipmentHistory: (() => {
+        if (personnelRecords && personnelRecords.length > 0) {
+          return personnelRecords.slice(-7).map((r, i) => {
+            const dStr = formatRecordDate(r.record_date, i + 1);
+            const item = { day: i + 1, date: dStr };
+            (equipmentData || []).forEach(e => {
+              item[e.name] = e.count || 0;
+            });
+            return item;
+          });
+        }
+        return (equipmentData || []).length > 0
+          ? [
+              { day: 1, date: '10.08', ...Object.fromEntries((equipmentData || []).map(e => [e.name, e.count || 0])) },
+              { day: 2, date: '11.08', ...Object.fromEntries((equipmentData || []).map(e => [e.name, e.count || 0])) },
+              { day: 3, date: '12.08', ...Object.fromEntries((equipmentData || []).map(e => [e.name, e.count || 0])) },
+              { day: 4, date: '13.08', ...Object.fromEntries((equipmentData || []).map(e => [e.name, e.count || 0])) },
+              { day: 5, date: '14.08', ...Object.fromEntries((equipmentData || []).map(e => [e.name, e.count || 0])) },
+              { day: 6, date: '15.08', ...Object.fromEntries((equipmentData || []).map(e => [e.name, e.count || 0])) },
+              { day: 7, date: '16.08', ...Object.fromEntries((equipmentData || []).map(e => [e.name, e.count || 0])) },
+            ]
+          : [];
+      })(),
+    },
+
     overallFact,
     overallPlan,
     remainingWork: +(100 - overallFact).toFixed(1),
     totalEquipment: totalEquip,
-    personnelHistory: (() => {
-      if (!personnelRecords || personnelRecords.length === 0) return [];
-      // Group or format unique dates
-      return personnelRecords.slice(-10).map((r, i) => {
-        const dStr = formatRecordDate(r.record_date, i + 1);
-        return {
-          day: i + 1,
-          date: dStr,
-          field: r.field_count || 0,
-          technical: r.technical || 0,
-          administrative: r.administrative || 0,
-        };
-      });
-    })(),
-    equipmentHistory: (() => {
-      if (personnelRecords && personnelRecords.length > 0) {
-        return personnelRecords.slice(-10).map((r, i) => {
-          const dStr = formatRecordDate(r.record_date, i + 1);
-          const item = { day: i + 1, date: dStr };
-          (equipmentData || []).forEach(e => {
-            item[e.name] = e.count || 0;
-          });
-          return item;
-        });
-      }
-      return (equipmentData || []).length > 0
-        ? [{
-            day: 1,
-            date: formatRecordDate(projectInfo?.report_date, 1),
-            ...Object.fromEntries((equipmentData || []).map(e => [e.name, e.count || 0]))
-          }]
-        : [];
-    })(),
     lastUpdated: new Date().toISOString(),
     isEmpty: !projectInfo && (!packages || packages.length === 0),
   };

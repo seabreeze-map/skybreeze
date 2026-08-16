@@ -110,13 +110,17 @@ export default function DashboardPage() {
   }
 
   const general = data?.general || {};
-  const packages = data?.packages || [];
   const personnel = data?.personnel || {};
   const personnelByPosition = data?.personnelByPosition || [];
   const equipmentData = data?.equipment || [];
   const risks = data?.risks || [];
-  const weeklyTrend = data?.weeklyTrend || [];
-  const monthlyTrend = data?.monthlyTrend || [];
+
+  // Distinct data for active period (weekly vs monthly)
+  const activePayload = period === 'monthly' ? (data?.monthly || {}) : (data?.weekly || {});
+  const activePackages = activePayload.packages || data?.packages || [];
+  const activeTrend = activePayload.trend || [];
+  const activePersonnelHistory = activePayload.personnelHistory || [];
+  const activeEquipmentHistory = activePayload.equipmentHistory || [];
 
   return (
     <>
@@ -129,7 +133,7 @@ export default function DashboardPage() {
         isExporting={isExporting}
       />
       <main id="dashboard-export-content" className="main-content">
-        {/* Page Header (Clean single title, duplicate button removed) */}
+        {/* Page Header */}
         <div className="page-header">
           <h1 className="page-header__title">
             🏗️ {general.projectName || 'Sky Breeze'} — {period === 'weekly' ? 'Həftəlik' : 'Aylıq'} Tikinti Hesabatı
@@ -153,13 +157,13 @@ export default function DashboardPage() {
           autoInterval={10}
         />
 
-        {/* Hero Stats */}
+        {/* Hero Stats (Dynamically adapts to Period) */}
         <div className="stats-grid">
           <StatCard
-            title="Ümumi İcra"
-            value={`${data?.overallFact || 0}%`}
-            subtitle={`Plan: ${data?.overallPlan || 0}% (${period === 'weekly' ? 'Həftəlik hədəf' : 'Aylıq hədəf'})`}
-            type={(data?.overallFact || 0) >= (data?.overallPlan || 0) ? 'success' : 'warning'}
+            title={period === 'weekly' ? 'Həftəlik Artım' : 'Ümumi İcra'}
+            value={activePayload.progressValue || `${data?.overallFact || 0}%`}
+            subtitle={activePayload.progressSubtitle || `Plan: ${data?.overallPlan || 0}%`}
+            type={(activePayload.overallFact || 0) >= (activePayload.overallPlan || 0) ? 'success' : 'warning'}
             icon="📊"
           />
           <StatCard
@@ -177,14 +181,14 @@ export default function DashboardPage() {
             icon="🛠️"
           />
           <StatCard
-            title="Cəmi Personal"
+            title={period === 'weekly' ? 'Bu Həftə Personal' : 'Cəmi Personal'}
             value={personnel.total || 0}
             subtitle={`İdari: ${personnel.administrative || 0} | Texniki: ${personnel.technical || 0} | Sahə: ${personnel.field || 0}`}
             type="default"
             icon="👷"
           />
           <StatCard
-            title="Cəmi Texnika"
+            title={period === 'weekly' ? 'Bu Həftə Texnika' : 'Cəmi Texnika'}
             value={data?.totalEquipment || 0}
             subtitle="vahid"
             type="accent"
@@ -195,12 +199,11 @@ export default function DashboardPage() {
         {/* Charts Row 1: Packages & Trend */}
         <div className="dashboard-section">
           <div className="charts-grid">
-            <PackageChart data={packages} period={period} />
+            <PackageChart data={activePackages} period={period} />
             <TrendChart
-              monthlyData={monthlyTrend}
-              weeklyData={weeklyTrend}
+              monthlyData={data?.monthly?.trend || []}
+              weeklyData={data?.weekly?.trend || []}
               initialPeriod={period}
-              onPeriodChange={setPeriod}
             />
           </div>
         </div>
@@ -208,8 +211,15 @@ export default function DashboardPage() {
         {/* Charts Row 2: Personnel & Equipment */}
         <div className="dashboard-section">
           <div className="charts-grid">
-            <PersonnelPieChart personnel={personnel} byPosition={personnelByPosition} history={data?.personnelHistory || []} />
-            <EquipmentChart data={equipmentData} history={data?.equipmentHistory || []} />
+            <PersonnelPieChart
+              personnel={personnel}
+              byPosition={personnelByPosition}
+              history={activePersonnelHistory}
+            />
+            <EquipmentChart
+              data={equipmentData}
+              history={activeEquipmentHistory}
+            />
           </div>
         </div>
 
