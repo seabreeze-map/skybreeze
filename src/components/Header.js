@@ -9,7 +9,8 @@ export default function Header({
   onSignOut,
   period = null,
   onPeriodChange = null,
-  onExportPDF = null
+  onExportPDF = null,
+  isExporting = false
 }) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -31,9 +32,9 @@ export default function Header({
           </div>
         </Link>
 
-        {/* Top Period Switcher & Actions when in Dashboard */}
+        {/* Top Period Switcher & PDF Export */}
         {period && onPeriodChange && (
-          <div className="header-period-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="header-period-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div className="period-segmented-control" style={{ padding: '3px', background: 'var(--color-bg)' }}>
               <button
                 type="button"
@@ -57,11 +58,12 @@ export default function Header({
               <button
                 type="button"
                 onClick={onExportPDF}
-                className="btn btn--outline btn--sm no-print"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', padding: '6px 12px' }}
-                title="Səhifəni PDF kimi çap et və ya yüklə"
+                disabled={isExporting}
+                className="btn btn--accent btn--sm no-print"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', padding: '6px 14px', fontWeight: 600 }}
+                title="Hesabatı PDF faylı kimi birbaşa yüklə"
               >
-                📄 PDF Yüklə
+                {isExporting ? '⏳ Hazırlanır...' : '📄 PDF Yüklə'}
               </button>
             )}
           </div>

@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
+import { exportDashboardToPDF } from '@/lib/pdf-export';
 import Header from '@/components/Header';
 import StatCard from '@/components/StatCard';
 import RefreshIndicator from '@/components/RefreshIndicator';
@@ -16,6 +17,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [period, setPeriod] = useState('weekly'); // Default olaraq həftəlik
+  const [isExporting, setIsExporting] = useState(false);
   const router = useRouter();
 
   const fetchData = useCallback(async () => {
@@ -80,8 +82,19 @@ export default function DashboardPage() {
     router.refresh();
   };
 
-  const handleExportPDF = () => {
-    window.print();
+  const handleExportPDF = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      const datePart = (data?.general?.reportDate || new Date().toISOString().slice(0, 10)).replace(/[^a-zA-Z0-9]/g, '_');
+      const filename = `Sky_Breeze_${period === 'weekly' ? 'Heftelik' : 'Ayliq'}_Hesabat_${datePart}.pdf`;
+      await exportDashboardToPDF('dashboard-export-content', filename);
+    } catch (err) {
+      console.error('PDF export error:', err);
+      alert('PDF hazırlanarkən xəta baş verdi: ' + err.message);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   if (loading) {
@@ -113,29 +126,17 @@ export default function DashboardPage() {
         period={period}
         onPeriodChange={setPeriod}
         onExportPDF={handleExportPDF}
+        isExporting={isExporting}
       />
-      <main className="main-content">
-        {/* Page Header */}
-        <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.25rem' }}>
-          <div>
-            <h1 className="page-header__title">
-              🏗️ {general.projectName || 'Sky Breeze'} — {period === 'weekly' ? 'Həftəlik' : 'Aylıq'} Tikinti Hesabatı
-            </h1>
-            <p className="page-header__desc">
-              {general.location || ''} | {general.contractor || ''} | Müqavilə: {general.contractStart || ''} – {general.contractEnd || ''}
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <button
-              type="button"
-              onClick={handleExportPDF}
-              className="btn btn--outline btn--sm no-print"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              📄 PDF Yüklə
-            </button>
-          </div>
+      <main id="dashboard-export-content" className="main-content">
+        {/* Page Header (Clean single title, duplicate button removed) */}
+        <div className="page-header">
+          <h1 className="page-header__title">
+            🏗️ {general.projectName || 'Sky Breeze'} — {period === 'weekly' ? 'Həftəlik' : 'Aylıq'} Tikinti Hesabatı
+          </h1>
+          <p className="page-header__desc">
+            {general.location || ''} | {general.contractor || ''} | Müqavilə: {general.contractStart || ''} – {general.contractEnd || ''}
+          </p>
         </div>
 
         {/* Empty Data Banner */}
