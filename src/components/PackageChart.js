@@ -1,7 +1,10 @@
 'use client';
+import { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export default function PackageChart({ data = [], period = 'weekly' }) {
+  const [hiddenKeys, setHiddenKeys] = useState([]);
+
   if (!data || data.length === 0) return null;
 
   const chartData = data.map(pkg => ({
@@ -12,13 +15,22 @@ export default function PackageChart({ data = [], period = 'weekly' }) {
     Kənarlaşma: pkg.currDeviation,
   }));
 
+  const toggleKey = (key) => {
+    setHiddenKeys(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
+  };
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload) return null;
+    const visiblePayload = payload.filter(p => !hiddenKeys.includes(p.dataKey));
+    if (visiblePayload.length === 0) return null;
+
     const item = data.find(d => d.name.replace('Paket ', 'P').replace('Sky Breeze Cəmi', 'Cəmi') === label) || {};
     return (
       <div className="chart-tooltip">
         <p className="chart-tooltip__title" style={{ fontWeight: 600, marginBottom: '6px' }}>{item.name || label}</p>
-        {payload.map((p, i) => (
+        {visiblePayload.map((p, i) => (
           <p key={i} style={{ color: p.color, margin: '2px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, display: 'inline-block' }} />
             {p.name}: <strong>{p.value}%</strong>
@@ -41,6 +53,50 @@ export default function PackageChart({ data = [], period = 'weekly' }) {
     );
   };
 
+  const renderCustomLegend = () => {
+    const items = [
+      { key: 'Plan', name: 'Plan %', color: '#2980B9' },
+      { key: 'Fakt', name: 'Fakt %', color: '#E67E22' },
+    ];
+
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap', paddingTop: '10px', fontSize: '13px' }}>
+        {items.map(item => {
+          const isHidden = hiddenKeys.includes(item.key);
+          return (
+            <div
+              key={item.key}
+              onClick={() => toggleKey(item.key)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                userSelect: 'none',
+                opacity: isHidden ? 0.35 : 1,
+                textDecoration: isHidden ? 'line-through' : 'none',
+                transition: 'all 0.2s ease',
+              }}
+              title={isHidden ? `${item.name} yandırmaq üçün klikləyin` : `${item.name} söndürmək üçün klikləyin`}
+            >
+              <span style={{
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                background: isHidden ? '#888' : item.color,
+                display: 'inline-block',
+                transition: 'all 0.2s ease'
+              }} />
+              <span style={{ color: isHidden ? 'var(--color-text-muted, #888)' : 'var(--color-text, #1a1a2e)', fontWeight: isHidden ? 400 : 500 }}>
+                {item.name}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <div className="chart-container">
       <h3 className="chart-title">Paketlər Üzrə Plan və Fakt</h3>
@@ -50,9 +106,21 @@ export default function PackageChart({ data = [], period = 'weekly' }) {
           <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'var(--color-text-muted, #94a3b8)' }} axisLine={{ stroke: 'var(--color-border, #e5e7eb)' }} tickLine={false} />
           <YAxis unit="%" tick={{ fontSize: 12, fill: 'var(--color-text-muted, #94a3b8)' }} axisLine={false} tickLine={false} />
           <Tooltip content={<CustomTooltip />} />
-          <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '13px', paddingTop: '10px' }} />
-          <Bar dataKey="Plan" name="Plan %" fill="#2980B9" radius={[3, 3, 0, 0]} />
-          <Bar dataKey="Fakt" name="Fakt %" fill="#E67E22" radius={[3, 3, 0, 0]} />
+          <Legend content={renderCustomLegend} />
+          <Bar
+            dataKey="Plan"
+            name="Plan %"
+            fill="#2980B9"
+            hide={hiddenKeys.includes('Plan')}
+            radius={[3, 3, 0, 0]}
+          />
+          <Bar
+            dataKey="Fakt"
+            name="Fakt %"
+            fill="#E67E22"
+            hide={hiddenKeys.includes('Fakt')}
+            radius={[3, 3, 0, 0]}
+          />
         </BarChart>
       </ResponsiveContainer>
 

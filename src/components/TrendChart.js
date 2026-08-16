@@ -1,15 +1,27 @@
 'use client';
+import { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export default function TrendChart({ monthlyData = [], weeklyData = [], initialPeriod = 'weekly' }) {
+  const [hiddenKeys, setHiddenKeys] = useState([]);
+
   const activeData = initialPeriod === 'monthly'
     ? (monthlyData && monthlyData.length > 0 ? monthlyData : [])
     : (weeklyData && weeklyData.length > 0 ? weeklyData : []);
 
+  const toggleKey = (key) => {
+    setHiddenKeys(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
+  };
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
-    const planVal = payload.find(p => p.dataKey === 'plan')?.value;
-    const factVal = payload.find(p => p.dataKey === 'fact')?.value;
+    const visiblePayload = payload.filter(p => !hiddenKeys.includes(p.dataKey));
+    if (visiblePayload.length === 0) return null;
+
+    const planVal = visiblePayload.find(p => p.dataKey === 'plan')?.value;
+    const factVal = visiblePayload.find(p => p.dataKey === 'fact')?.value;
     const diff = (factVal !== undefined && planVal !== undefined)
       ? +(factVal - planVal).toFixed(1)
       : null;
@@ -27,16 +39,20 @@ export default function TrendChart({ monthlyData = [], weeklyData = [], initialP
         <div style={{ fontWeight: 600, marginBottom: '6px', color: 'var(--color-text, #1a1a2e)' }}>
           {label} ({initialPeriod === 'monthly' ? 'Aylıq' : 'Həftəlik'})
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2980B9', display: 'inline-block' }} />
-          <span style={{ color: 'var(--color-text-secondary, #64748b)' }}>Plan:</span>
-          <strong>{planVal !== undefined ? `${planVal}%` : '—'}</strong>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#E67E22', display: 'inline-block' }} />
-          <span style={{ color: 'var(--color-text-secondary, #64748b)' }}>Fakt:</span>
-          <strong>{factVal !== undefined ? `${factVal}%` : '—'}</strong>
-        </div>
+        {planVal !== undefined && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2980B9', display: 'inline-block' }} />
+            <span style={{ color: 'var(--color-text-secondary, #64748b)' }}>Plan:</span>
+            <strong>{`${planVal}%`}</strong>
+          </div>
+        )}
+        {factVal !== undefined && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#E67E22', display: 'inline-block' }} />
+            <span style={{ color: 'var(--color-text-secondary, #64748b)' }}>Fakt:</span>
+            <strong>{`${factVal}%`}</strong>
+          </div>
+        )}
         {diff !== null && (
           <div style={{
             marginTop: '4px',
@@ -49,6 +65,50 @@ export default function TrendChart({ monthlyData = [], weeklyData = [], initialP
             Kənarlaşma: {diff >= 0 ? `+${diff}%` : `${diff}%`}
           </div>
         )}
+      </div>
+    );
+  };
+
+  const renderCustomLegend = () => {
+    const items = [
+      { key: 'plan', name: 'Plan %', color: '#2980B9' },
+      { key: 'fact', name: 'Fakt %', color: '#E67E22' },
+    ];
+
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap', paddingTop: '10px', fontSize: '13px' }}>
+        {items.map(item => {
+          const isHidden = hiddenKeys.includes(item.key);
+          return (
+            <div
+              key={item.key}
+              onClick={() => toggleKey(item.key)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                userSelect: 'none',
+                opacity: isHidden ? 0.35 : 1,
+                textDecoration: isHidden ? 'line-through' : 'none',
+                transition: 'all 0.2s ease',
+              }}
+              title={isHidden ? `${item.name} yandırmaq üçün klikləyin` : `${item.name} söndürmək üçün klikləyin`}
+            >
+              <span style={{
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                background: isHidden ? '#888' : item.color,
+                display: 'inline-block',
+                transition: 'all 0.2s ease'
+              }} />
+              <span style={{ color: isHidden ? 'var(--color-text-muted, #888)' : 'var(--color-text, #1a1a2e)', fontWeight: isHidden ? 400 : 500 }}>
+                {item.name}
+              </span>
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -77,11 +137,7 @@ export default function TrendChart({ monthlyData = [], weeklyData = [], initialP
             tickLine={false}
           />
           <Tooltip content={<CustomTooltip />} />
-          <Legend
-            iconType="circle"
-            iconSize={8}
-            wrapperStyle={{ fontSize: '13px', paddingTop: '10px' }}
-          />
+          <Legend content={renderCustomLegend} />
           <Line
             type="monotone"
             dataKey="plan"
@@ -90,6 +146,7 @@ export default function TrendChart({ monthlyData = [], weeklyData = [], initialP
             strokeWidth={2.5}
             dot={{ r: 4, fill: '#2980B9' }}
             activeDot={{ r: 6 }}
+            hide={hiddenKeys.includes('plan')}
           />
           <Line
             type="monotone"
@@ -99,6 +156,7 @@ export default function TrendChart({ monthlyData = [], weeklyData = [], initialP
             strokeWidth={2.5}
             dot={{ r: 4, fill: '#E67E22' }}
             activeDot={{ r: 6 }}
+            hide={hiddenKeys.includes('fact')}
           />
         </LineChart>
       </ResponsiveContainer>

@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const COLORS = {
@@ -8,6 +9,8 @@ const COLORS = {
 };
 
 export default function PersonnelPieChart({ personnel, byPosition, history = [] }) {
+  const [hiddenKeys, setHiddenKeys] = useState([]);
+
   if (!personnel) return null;
 
   const chartData = history && history.length > 0
@@ -16,9 +19,18 @@ export default function PersonnelPieChart({ personnel, byPosition, history = [] 
 
   const xDataKey = (chartData[0]?.date && chartData[0]?.date !== 'Cari') ? 'date' : 'day';
 
+  const toggleKey = (key) => {
+    setHiddenKeys(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
+  };
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
-    const total = payload.reduce((s, p) => s + (p.value || 0), 0);
+    const visiblePayload = payload.filter(p => !hiddenKeys.includes(p.dataKey));
+    if (visiblePayload.length === 0) return null;
+    const total = visiblePayload.reduce((s, p) => s + (p.value || 0), 0);
+
     return (
       <div style={{
         background: 'var(--color-surface, #fff)',
@@ -31,7 +43,7 @@ export default function PersonnelPieChart({ personnel, byPosition, history = [] 
         <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--color-text, #1a1a2e)' }}>
           {typeof label === 'number' ? `Gün ${label}` : `Tarix: ${label}`}
         </div>
-        {payload.map((p, i) => (
+        {visiblePayload.map((p, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, display: 'inline-block' }} />
             <span style={{ color: 'var(--color-text-secondary, #64748b)' }}>{p.name}:</span>
@@ -41,6 +53,51 @@ export default function PersonnelPieChart({ personnel, byPosition, history = [] 
         <div style={{ borderTop: '1px solid var(--color-border, #e5e7eb)', marginTop: 4, paddingTop: 4, fontWeight: 600, color: 'var(--color-text, #1a1a2e)' }}>
           Cəmi: {total} nəfər
         </div>
+      </div>
+    );
+  };
+
+  const renderCustomLegend = () => {
+    const items = [
+      { key: 'field', name: 'Sahə personalı', color: COLORS.field },
+      { key: 'technical', name: 'Texniki personal', color: COLORS.technical },
+      { key: 'administrative', name: 'İdari personal', color: COLORS.administrative },
+    ];
+
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', flexWrap: 'wrap', paddingTop: '12px', fontSize: '13px' }}>
+        {items.map(item => {
+          const isHidden = hiddenKeys.includes(item.key);
+          return (
+            <div
+              key={item.key}
+              onClick={() => toggleKey(item.key)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                userSelect: 'none',
+                opacity: isHidden ? 0.35 : 1,
+                textDecoration: isHidden ? 'line-through' : 'none',
+                transition: 'all 0.2s ease',
+              }}
+              title={isHidden ? `${item.name} yandırmaq üçün klikləyin` : `${item.name} söndürmək üçün klikləyin`}
+            >
+              <span style={{
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                background: isHidden ? '#888' : item.color,
+                display: 'inline-block',
+                transition: 'all 0.2s ease'
+              }} />
+              <span style={{ color: isHidden ? 'var(--color-text-muted, #888)' : 'var(--color-text, #1a1a2e)', fontWeight: isHidden ? 400 : 500 }}>
+                {item.name}
+              </span>
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -68,14 +125,31 @@ export default function PersonnelPieChart({ personnel, byPosition, history = [] 
             tickLine={false}
           />
           <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
-          <Legend
-            iconType="circle"
-            iconSize={10}
-            wrapperStyle={{ fontSize: '13px', paddingTop: '12px' }}
+          <Legend content={renderCustomLegend} />
+          <Bar
+            dataKey="field"
+            name="Sahə personalı"
+            stackId="a"
+            fill={COLORS.field}
+            hide={hiddenKeys.includes('field')}
+            radius={[0, 0, 0, 0]}
           />
-          <Bar dataKey="field" name="Sahə personalı" stackId="a" fill={COLORS.field} radius={[0, 0, 0, 0]} />
-          <Bar dataKey="technical" name="Texniki personal" stackId="a" fill={COLORS.technical} radius={[0, 0, 0, 0]} />
-          <Bar dataKey="administrative" name="İdari personal" stackId="a" fill={COLORS.administrative} radius={[3, 3, 0, 0]} />
+          <Bar
+            dataKey="technical"
+            name="Texniki personal"
+            stackId="a"
+            fill={COLORS.technical}
+            hide={hiddenKeys.includes('technical')}
+            radius={[0, 0, 0, 0]}
+          />
+          <Bar
+            dataKey="administrative"
+            name="İdari personal"
+            stackId="a"
+            fill={COLORS.administrative}
+            hide={hiddenKeys.includes('administrative')}
+            radius={[3, 3, 0, 0]}
+          />
         </BarChart>
       </ResponsiveContainer>
     </div>
