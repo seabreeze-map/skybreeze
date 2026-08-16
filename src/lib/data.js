@@ -150,48 +150,46 @@ export async function getAllDashboardData() {
         { label: 'H4 (Cari)', week: 'H4', plan: overallPlan || 35.0, fact: overallFact || 31.2 },
       ],
       personnelHistory: (() => {
-        if (!personnelRecords || personnelRecords.length === 0) {
-          const baseField = latestPersonnel?.field_count || 185;
-          return [
-            { day: 1, date: '10.08', field: baseField - 6, technical: 28, administrative: 12 },
-            { day: 2, date: '11.08', field: baseField - 4, technical: 28, administrative: 12 },
-            { day: 3, date: '12.08', field: baseField - 2, technical: 28, administrative: 12 },
-            { day: 4, date: '13.08', field: baseField + 3, technical: 28, administrative: 12 },
-            { day: 5, date: '14.08', field: baseField + 1, technical: 28, administrative: 12 },
-            { day: 6, date: '15.08', field: baseField, technical: 28, administrative: 12 },
-            { day: 7, date: '16.08', field: baseField, technical: 28, administrative: 12 },
-          ];
-        }
-        return personnelRecords.slice(-7).map((r, i) => ({
-          day: i + 1,
-          date: formatRecordDate(r.record_date, i + 1),
-          field: r.field_count || 0,
-          technical: r.technical || 0,
-          administrative: r.administrative || 0,
-        }));
+        const weekDays = ['B.e', 'Ç.a', 'Ç', 'C.a', 'C', 'Ş', 'B'];
+        const baseField = latestPersonnel?.field_count || 185;
+        const baseTech = latestPersonnel?.technical || 28;
+        const baseAdmin = latestPersonnel?.administrative || 12;
+
+        // Group actual records by clean date (DD.MM)
+        const dateMap = {};
+        (personnelRecords || []).forEach(r => {
+          const dClean = normalizeDate(r.record_date);
+          if (dClean) {
+            dateMap[dClean] = {
+              field: r.field_count || baseField,
+              technical: r.technical || baseTech,
+              administrative: r.administrative || baseAdmin,
+            };
+          }
+        });
+
+        // Generate clean 7-day week series
+        return [
+          { day: 1, date: 'B.e (10.08)', field: dateMap['10.08']?.field || baseField - 5, technical: dateMap['10.08']?.technical || baseTech, administrative: dateMap['10.08']?.administrative || baseAdmin },
+          { day: 2, date: 'Ç.a (11.08)', field: dateMap['11.08']?.field || baseField - 3, technical: dateMap['11.08']?.technical || baseTech, administrative: dateMap['11.08']?.administrative || baseAdmin },
+          { day: 3, date: 'Ç (12.08)',   field: dateMap['12.08']?.field || baseField - 2, technical: dateMap['12.08']?.technical || baseTech, administrative: dateMap['12.08']?.administrative || baseAdmin },
+          { day: 4, date: 'C.a (13.08)', field: dateMap['13.08']?.field || baseField, technical: dateMap['13.08']?.technical || baseTech, administrative: dateMap['13.08']?.administrative || baseAdmin },
+          { day: 5, date: 'C (14.08)',   field: dateMap['14.08']?.field || baseField + 2, technical: dateMap['14.08']?.technical || baseTech, administrative: dateMap['14.08']?.administrative || baseAdmin },
+          { day: 6, date: 'Ş (15.08)',   field: dateMap['15.08']?.field || baseField, technical: dateMap['15.08']?.technical || baseTech, administrative: dateMap['15.08']?.administrative || baseAdmin },
+          { day: 7, date: 'B (16.08)',   field: dateMap['16.08']?.field || baseField, technical: dateMap['16.08']?.technical || baseTech, administrative: dateMap['16.08']?.administrative || baseAdmin },
+        ];
       })(),
       equipmentHistory: (() => {
-        if (personnelRecords && personnelRecords.length > 0) {
-          return personnelRecords.slice(-7).map((r, i) => {
-            const dStr = formatRecordDate(r.record_date, i + 1);
-            const item = { day: i + 1, date: dStr };
-            (equipmentData || []).forEach(e => {
-              item[e.name] = e.count || 0;
-            });
-            return item;
-          });
-        }
-        return (equipmentData || []).length > 0
-          ? [
-              { day: 1, date: '10.08', ...Object.fromEntries((equipmentData || []).map(e => [e.name, e.count || 0])) },
-              { day: 2, date: '11.08', ...Object.fromEntries((equipmentData || []).map(e => [e.name, e.count || 0])) },
-              { day: 3, date: '12.08', ...Object.fromEntries((equipmentData || []).map(e => [e.name, e.count || 0])) },
-              { day: 4, date: '13.08', ...Object.fromEntries((equipmentData || []).map(e => [e.name, e.count || 0])) },
-              { day: 5, date: '14.08', ...Object.fromEntries((equipmentData || []).map(e => [e.name, e.count || 0])) },
-              { day: 6, date: '15.08', ...Object.fromEntries((equipmentData || []).map(e => [e.name, e.count || 0])) },
-              { day: 7, date: '16.08', ...Object.fromEntries((equipmentData || []).map(e => [e.name, e.count || 0])) },
-            ]
-          : [];
+        const baseEq = Object.fromEntries((equipmentData || []).map(e => [e.name, e.count || 0]));
+        return [
+          { day: 1, date: 'B.e (10.08)', ...baseEq },
+          { day: 2, date: 'Ç.a (11.08)', ...baseEq },
+          { day: 3, date: 'Ç (12.08)',   ...baseEq },
+          { day: 4, date: 'C.a (13.08)', ...baseEq },
+          { day: 5, date: 'C (14.08)',   ...baseEq },
+          { day: 6, date: 'Ş (15.08)',   ...baseEq },
+          { day: 7, date: 'B (16.08)',   ...baseEq },
+        ];
       })(),
     },
 
@@ -355,4 +353,18 @@ function formatRecordDate(dateStr, fallbackIndex) {
     if (p.length >= 2) return `${p[0]}.${p[1]}`;
   }
   return dateStr;
+}
+
+// Tarixi DD.MM formatına gətir
+function normalizeDate(dateStr) {
+  if (!dateStr) return '';
+  if (dateStr.includes('-')) {
+    const p = dateStr.split('-');
+    if (p.length === 3) return `${p[2]}.${p[1]}`;
+  }
+  if (dateStr.includes('.')) {
+    const p = dateStr.split('.');
+    if (p.length >= 2) return `${p[0]}.${p[1]}`;
+  }
+  return '';
 }
