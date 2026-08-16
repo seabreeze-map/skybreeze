@@ -49,13 +49,18 @@ export default function PersonnelPieChart({ personnel, byPosition, history = [] 
     <div className="chart-container">
       <h3 className="chart-title">Günlük personal sayı</h3>
       <ResponsiveContainer width="100%" height={320}>
-        <BarChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+        <BarChart
+          data={chartData}
+          maxBarSize={45}
+          margin={{ top: 20, right: 20, left: -10, bottom: 5 }}
+        >
           <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border, #e5e7eb)" vertical={false} />
           <XAxis
             dataKey={xDataKey}
-            tick={{ fontSize: 12, fill: 'var(--color-text-muted, #94a3b8)' }}
+            tick={{ fontSize: 11, fill: 'var(--color-text-muted, #94a3b8)' }}
             axisLine={{ stroke: 'var(--color-border, #e5e7eb)' }}
             tickLine={false}
+            padding={{ left: 10, right: 10 }}
           />
           <YAxis
             tick={{ fontSize: 12, fill: 'var(--color-text-muted, #94a3b8)' }}

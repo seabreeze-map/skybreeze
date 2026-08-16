@@ -7,44 +7,49 @@ export async function exportDashboardToPDF(elementId = 'dashboard-export-content
     throw new Error('Hesabat məzmunu tapılmadı');
   }
 
-  // Hide any elements with no-print or interactive elements temporarily
+  // Detect current theme
+  const computedStyle = window.getComputedStyle(document.body);
+  const bgColor = computedStyle.backgroundColor || '#0f172a';
+
+  // Hide interactive or temporary elements
   const noPrintEls = element.querySelectorAll('.no-print, .refresh-indicator');
   noPrintEls.forEach(el => { el.dataset.prevDisplay = el.style.display; el.style.display = 'none'; });
 
   try {
-    // Generate high-resolution canvas
+    // Generate high-resolution canvas with full width
     const canvas = await html2canvas(element, {
-      scale: 2, // 2x resolution for sharp text & crisp vector-like charts
+      scale: 2, // 2x high resolution
       useCORS: true,
       allowTaint: true,
-      backgroundColor: '#F8FAFC',
+      backgroundColor: bgColor,
       logging: false,
       windowWidth: 1280,
     });
 
-    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    const imgData = canvas.toDataURL('image/jpeg', 0.98);
 
-    // PDF setup in A4 portrait
+    // PDF in A4 portrait
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
 
-    const imgWidth = pdfWidth - 16; // 8mm margins left and right
+    const margin = 6; // 6mm margins
+    const imgWidth = pdfWidth - (margin * 2);
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
     let heightLeft = imgHeight;
-    let position = 8; // top margin 8mm
+    let position = margin;
 
-    // Add first page
-    pdf.addImage(imgData, 'JPEG', 8, position, imgWidth, imgHeight, '', 'FAST');
-    heightLeft -= (pdfHeight - 16);
+    // First page
+    pdf.addImage(imgData, 'JPEG', margin, position, imgWidth, imgHeight, '', 'FAST');
+    heightLeft -= (pdfHeight - (margin * 2));
 
-    // If multi-page needed
+    // Multi-page if content is long
     while (heightLeft > 0) {
-      position = heightLeft - imgHeight + 8;
+      position = heightLeft - imgHeight + margin;
       pdf.addPage();
-      pdf.addImage(imgData, 'JPEG', 8, position, imgWidth, imgHeight, '', 'FAST');
-      heightLeft -= (pdfHeight - 16);
+      pdf.addImage(imgData, 'JPEG', margin, position, imgWidth, imgHeight, '', 'FAST');
+      heightLeft -= (pdfHeight - (margin * 2));
     }
 
     pdf.save(filename);

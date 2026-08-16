@@ -103,28 +103,39 @@ export async function getAllDashboardData() {
     overallPlan,
     remainingWork: +(100 - overallFact).toFixed(1),
     totalEquipment: totalEquip,
-    personnelHistory: (personnelRecords || []).map((r, i) => ({
-      day: i + 1,
-      date: r.record_date,
-      field: r.field_count || 0,
-      technical: r.technical || 0,
-      administrative: r.administrative || 0,
-    })),
-    equipmentHistory: (personnelRecords && personnelRecords.length > 0)
-      ? personnelRecords.map((r, i) => {
-          const item = { day: i + 1, date: r.record_date };
+    personnelHistory: (() => {
+      if (!personnelRecords || personnelRecords.length === 0) return [];
+      // Group or format unique dates
+      return personnelRecords.slice(-10).map((r, i) => {
+        const dStr = formatRecordDate(r.record_date, i + 1);
+        return {
+          day: i + 1,
+          date: dStr,
+          field: r.field_count || 0,
+          technical: r.technical || 0,
+          administrative: r.administrative || 0,
+        };
+      });
+    })(),
+    equipmentHistory: (() => {
+      if (personnelRecords && personnelRecords.length > 0) {
+        return personnelRecords.slice(-10).map((r, i) => {
+          const dStr = formatRecordDate(r.record_date, i + 1);
+          const item = { day: i + 1, date: dStr };
           (equipmentData || []).forEach(e => {
             item[e.name] = e.count || 0;
           });
           return item;
-        })
-      : (equipmentData || []).length > 0
+        });
+      }
+      return (equipmentData || []).length > 0
         ? [{
             day: 1,
-            date: projectInfo?.report_date || 'Cari',
+            date: formatRecordDate(projectInfo?.report_date, 1),
             ...Object.fromEntries((equipmentData || []).map(e => [e.name, e.count || 0]))
           }]
-        : [],
+        : [];
+    })(),
     lastUpdated: new Date().toISOString(),
     isEmpty: !projectInfo && (!packages || packages.length === 0),
   };
@@ -259,9 +270,26 @@ export async function saveAllData(supabase, { general, packages, personnel, equi
 
 // Tarix string-indən həftə nömrəsini hesabla
 function getWeekNumber(dateStr) {
+  if (!dateStr) return 1;
   const parts = dateStr.split('.');
   if (parts.length !== 3) return 1;
   const d = new Date(parts[2], parts[1] - 1, parts[0]);
   const start = new Date(d.getFullYear(), 0, 1);
   return Math.ceil(((d - start) / 86400000 + start.getDay() + 1) / 7);
+}
+
+// Tarixi qısa və səliqəli formata çevir
+function formatRecordDate(dateStr, fallbackIndex) {
+  if (!dateStr) return `Gün ${fallbackIndex}`;
+  // If in YYYY-MM-DD format
+  if (dateStr.includes('-')) {
+    const p = dateStr.split('-');
+    if (p.length === 3) return `${p[2]}.${p[1]}`;
+  }
+  // If in DD.MM.YYYY format
+  if (dateStr.includes('.')) {
+    const p = dateStr.split('.');
+    if (p.length >= 2) return `${p[0]}.${p[1]}`;
+  }
+  return dateStr;
 }

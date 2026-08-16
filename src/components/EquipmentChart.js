@@ -18,10 +18,8 @@ const DEFAULT_COLOR_LIST = ['#2C3E50', '#2980B9', '#3498DB', '#16A085', '#27AE60
 export default function EquipmentChart({ data = [], history = [] }) {
   if (!data || data.length === 0) return null;
 
-  // Extract equipment names
   const equipmentNames = data.map(item => item.name);
 
-  // If history is provided and not empty, use history, otherwise create a single snapshot bar
   const chartData = history && history.length > 0
     ? history
     : [{
@@ -31,6 +29,7 @@ export default function EquipmentChart({ data = [], history = [] }) {
       }];
 
   const totalCurrent = data.reduce((sum, item) => sum + (item.count || 0), 0);
+  const xDataKey = (chartData[0]?.date && chartData[0]?.date !== 'Cari') ? 'date' : 'day';
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
@@ -47,7 +46,7 @@ export default function EquipmentChart({ data = [], history = [] }) {
         overflowY: 'auto'
       }}>
         <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--color-text, #1a1a2e)' }}>
-          {typeof label === 'number' ? `Gün ${label}` : label}
+          {typeof label === 'number' ? `Gün ${label}` : `Tarix: ${label}`}
         </div>
         {payload.filter(p => p.value > 0).map((p, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
@@ -69,13 +68,18 @@ export default function EquipmentChart({ data = [], history = [] }) {
         Texnika Tərkibi <span className="chart-title__sub" style={{ fontWeight: 500, opacity: 0.8 }}>(Cəmi: {totalCurrent} vahid)</span>
       </h3>
       <ResponsiveContainer width="100%" height={320}>
-        <BarChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+        <BarChart
+          data={chartData}
+          maxBarSize={45}
+          margin={{ top: 20, right: 20, left: -10, bottom: 5 }}
+        >
           <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border, #e5e7eb)" vertical={false} />
           <XAxis
-            dataKey={chartData[0]?.date && chartData[0]?.date !== 'Cari' ? 'date' : 'day'}
-            tick={{ fontSize: 12, fill: 'var(--color-text-muted, #94a3b8)' }}
+            dataKey={xDataKey}
+            tick={{ fontSize: 11, fill: 'var(--color-text-muted, #94a3b8)' }}
             axisLine={{ stroke: 'var(--color-border, #e5e7eb)' }}
             tickLine={false}
+            padding={{ left: 10, right: 10 }}
           />
           <YAxis
             tick={{ fontSize: 12, fill: 'var(--color-text-muted, #94a3b8)' }}
@@ -86,7 +90,7 @@ export default function EquipmentChart({ data = [], history = [] }) {
           <Legend
             iconType="circle"
             iconSize={9}
-            wrapperStyle={{ fontSize: '12px', paddingTop: '12px', lineHeight: '1.6' }}
+            wrapperStyle={{ fontSize: '11px', paddingTop: '12px', lineHeight: '1.6' }}
           />
           {equipmentNames.map((name, index) => (
             <Bar
